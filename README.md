@@ -1,6 +1,6 @@
 # Driver Monitoring System - Web Application
 
-A real-time driver monitoring system that detects drowsiness and distraction using computer vision and AI. Built with FastAPI (backend) and React (frontend).
+A real-time driver monitoring system that detects drowsiness and distraction using computer vision and AI. Built with FastAPI (backend), React (frontend) and SQLite (Database).
 
 ## Features
 
