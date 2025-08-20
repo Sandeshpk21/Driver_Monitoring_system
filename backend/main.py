@@ -43,6 +43,10 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(alerts_router)
 
+# Import and include users router
+from api.users import router as users_router
+app.include_router(users_router)
+
 # Global processor instances (per user)
 processors: Dict[str, DriverMonitorProcessor] = {}
 user_settings: Dict[str, Settings] = {}

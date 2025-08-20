@@ -8,11 +8,12 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/api': {
-        target: 'https://p2vzpcsr-8000.inc1.devtunnels.ms/',
+        target: 'http://0.0.0.0:8000',
         changeOrigin: true,
+        secure: true,
       },
       '/ws': {
-        target: 'wss://p2vzpcsr-8000.inc1.devtunnels.ms/',
+        target: 'ws://0.0.0.0:8000',
         ws: true,
         changeOrigin: true,
         secure: true,

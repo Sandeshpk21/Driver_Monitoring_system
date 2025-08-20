@@ -11,6 +11,7 @@ from utils.timezone import get_ist_datetime_for_db, now_ist
 from database.connection import get_db
 from database.models import User, Alert, MonitoringSession, AlertStatistics
 from auth.security import get_current_active_user
+from auth.permissions import require_manager_or_admin, get_accessible_user_ids
 from models.alert import AlertCreate, AlertResponse, AlertAnalytics, SessionResponse
 
 router = APIRouter(prefix="/api/alerts", tags=["Alerts"])
@@ -73,13 +74,31 @@ async def get_alert_history(
     end_date: Optional[datetime] = None,
     alert_type: Optional[str] = None,
     severity: Optional[str] = None,
+    user_id: Optional[str] = None,  # For managers/admins to view specific user
     limit: int = Query(100, le=1000),
     offset: int = 0,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ) -> List[AlertResponse]:
-    """Get alert history for current user"""
-    query = db.query(Alert).filter(Alert.user_id == current_user.id)
+    """Get alert history - drivers see own, managers/admins see all"""
+    # Check permissions
+    if user_id and user_id != current_user.id:
+        # Only managers and admins can view other users' data
+        if current_user.role not in ["manager", "admin"]:
+            user_id = current_user.id
+    else:
+        # If no user_id specified or it's the current user
+        if current_user.role in ["manager", "admin"] and not user_id:
+            # Managers/admins see all by default
+            query = db.query(Alert)
+        else:
+            user_id = user_id or current_user.id
+            query = db.query(Alert).filter(Alert.user_id == user_id)
+    
+    if user_id:
+        query = db.query(Alert).filter(Alert.user_id == user_id)
+    else:
+        query = db.query(Alert)
     
     if start_date:
         query = query.filter(Alert.timestamp >= start_date)
@@ -185,13 +204,31 @@ async def get_alert_analytics(
 async def get_monitoring_sessions(
     limit: int = Query(20, le=100),
     offset: int = 0,
+    user_id: Optional[str] = None,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ) -> List[SessionResponse]:
-    """Get monitoring sessions for current user"""
-    sessions = db.query(MonitoringSession).filter(
-        MonitoringSession.user_id == current_user.id
-    ).order_by(
+    """Get monitoring sessions - drivers see own, managers/admins can see all"""
+    # Determine which user's sessions to fetch
+    if user_id and user_id != current_user.id:
+        # Only managers and admins can view other users' sessions
+        if current_user.role not in ["manager", "admin"]:
+            target_user_id = current_user.id
+        else:
+            target_user_id = user_id
+    else:
+        target_user_id = user_id or current_user.id
+    
+    # Build query
+    if current_user.role in ["manager", "admin"] and not user_id:
+        # Managers/admins see all sessions if no specific user requested
+        query = db.query(MonitoringSession)
+    else:
+        query = db.query(MonitoringSession).filter(
+            MonitoringSession.user_id == target_user_id
+        )
+    
+    sessions = query.order_by(
         MonitoringSession.start_time.desc()
     ).offset(offset).limit(limit).all()
     

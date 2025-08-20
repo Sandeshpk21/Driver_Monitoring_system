@@ -8,6 +8,7 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=6)
     full_name: Optional[str] = None
+    role: Optional[str] = Field(default="driver", regex="^(driver|manager|admin)$")
 
 class UserLogin(BaseModel):
     """User login model"""
@@ -20,6 +21,7 @@ class UserResponse(BaseModel):
     username: str
     email: str
     full_name: Optional[str]
+    role: str
     is_active: bool
 
 class TokenResponse(BaseModel):
@@ -33,3 +35,4 @@ class UserUpdate(BaseModel):
     """User update model"""
     full_name: Optional[str] = None
     email: Optional[EmailStr] = None
+    role: Optional[str] = Field(default=None, regex="^(driver|manager|admin)$")

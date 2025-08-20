@@ -2,20 +2,18 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { authService } from '../services/auth';
+import { User, UserRole } from '../types';
 
-interface User {
-  id: string;
-  username: string;
-  email: string;
-  full_name?: string;
-  is_active: boolean;
-}
 
 interface AuthContextType {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isDriver: boolean;
+  isManager: boolean;
+  isAdmin: boolean;
+  hasRole: (role: UserRole | UserRole[]) => boolean;
   login: (username: string, password: string) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
   logout: () => void;
@@ -145,11 +143,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     navigate('/login');
   };
 
+  const hasRole = (role: UserRole | UserRole[]): boolean => {
+    if (!user) return false;
+    if (Array.isArray(role)) {
+      return role.includes(user.role);
+    }
+    return user.role === role;
+  };
+
   const value = {
     user,
     token,
     isAuthenticated: !!token && !!user,
     isLoading,
+    isDriver: user?.role === 'driver',
+    isManager: user?.role === 'manager',
+    isAdmin: user?.role === 'admin',
+    hasRole,
     login,
     register,
     logout,
