@@ -111,6 +111,7 @@ const Monitoring: React.FC = () => {
               onCalibrate={handleCalibrate}
               isCalibrated={isCalibrated}
               isMonitoring={isMonitoring}
+              isConnected={isConnected}
               onStartMonitoring={handleStartMonitoring}
               onStopMonitoring={handleStopMonitoring}
             />
@@ -120,38 +121,6 @@ const Monitoring: React.FC = () => {
         {/* Side Panels */}
         <Grid item xs={12} lg={4}>
           <Grid container spacing={{ xs: 1, sm: 2 }} direction={{ xs: 'column', sm: 'row', lg: 'column' }}>
-            {/* Connection Status */}
-            <Grid item xs={12} sm={6} lg={12}>
-              <Paper sx={{ p: { xs: 1.5, sm: 2 }, backgroundColor: '#1a1a1a' }}>
-                <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' }, gap: 1 }}>
-                  <Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: { xs: 0.5, sm: 1 } }}>
-                      <Box
-                        sx={{
-                          width: 10,
-                          height: 10,
-                          borderRadius: '50%',
-                          backgroundColor: isConnected ? '#4caf50' : '#f44336',
-                        }}
-                      />
-                      <span style={{ fontSize: '0.875rem' }}>{isConnected ? 'Connected' : 'Disconnected'}</span>
-                    </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Box
-                        sx={{
-                          width: 10,
-                          height: 10,
-                          borderRadius: '50%',
-                          backgroundColor: isMonitoring ? '#4caf50' : '#ff9800',
-                        }}
-                      />
-                      <span style={{ fontSize: '0.875rem' }}>{isMonitoring ? 'Monitoring Active' : 'Monitoring Stopped'}</span>
-                    </Box>
-                  </Box>
-                </Box>
-              </Paper>
-            </Grid>
-
             {/* Alerts */}
             <Grid item xs={12} sm={6} lg={12}>
               <Paper sx={{ p: { xs: 1.5, sm: 2 }, backgroundColor: '#1a1a1a', maxHeight: { xs: 200, sm: 250, lg: 300 }, overflow: 'auto' }}>

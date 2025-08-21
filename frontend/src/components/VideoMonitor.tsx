@@ -10,6 +10,7 @@ interface VideoMonitorProps {
   onCalibrate: (calibrationData: any) => void;
   isCalibrated: boolean;
   isMonitoring: boolean;
+  isConnected: boolean;
   onStartMonitoring: () => void;
   onStopMonitoring: () => void;
 }
@@ -20,6 +21,7 @@ const VideoMonitor: React.FC<VideoMonitorProps> = ({
   onCalibrate,
   isCalibrated,
   isMonitoring,
+  isConnected,
   onStartMonitoring,
   onStopMonitoring,
 }) => {
@@ -334,6 +336,9 @@ const VideoMonitor: React.FC<VideoMonitorProps> = ({
             gap: 0.5,
           }}
         >
+          <Typography variant="caption" sx={{ color: isConnected ? '#4caf50' : '#f44336', fontSize: { xs: '0.625rem', sm: '0.75rem' } }}>
+            {isConnected ? '● Connected' : '● Disconnected'}
+          </Typography>
           <Typography variant="caption" sx={{ color: isMonitoring ? '#4caf50' : '#ff9800', fontSize: { xs: '0.625rem', sm: '0.75rem' } }}>
             {isMonitoring ? '● Monitoring Active' : '● Monitoring Stopped'}
           </Typography>
