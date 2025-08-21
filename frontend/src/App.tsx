@@ -259,7 +259,7 @@ function App() {
             <AppContent />
             <ToastContainer 
               theme="dark" 
-              position="bottom-right"
+              position="top-right"
               autoClose={3000}
               hideProgressBar={false}
               newestOnTop
@@ -268,6 +268,12 @@ function App() {
               pauseOnFocusLoss
               draggable
               pauseOnHover
+              toastStyle={{
+                marginTop: '70px', // Add margin to avoid overlapping with top navigation
+              }}
+              style={{
+                top: '70px', // Position below top navigation on mobile
+              }}
             />
           </AuthProvider>
         </Router>

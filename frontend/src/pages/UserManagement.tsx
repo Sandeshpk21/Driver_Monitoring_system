@@ -82,7 +82,6 @@ const UserManagement: React.FC = () => {
       await api.post('/users/create', formData, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      toast.success('User created successfully');
       setOpenDialog(false);
       resetForm();
       fetchUsers();
@@ -102,7 +101,6 @@ const UserManagement: React.FC = () => {
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      toast.success('User updated successfully');
       setOpenDialog(false);
       resetForm();
       fetchUsers();
@@ -116,7 +114,6 @@ const UserManagement: React.FC = () => {
       await api.patch(`/users/${userId}/toggle-active`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      toast.success('User status updated');
       fetchUsers();
     } catch (error: any) {
       toast.error(error.response?.data?.detail || 'Failed to update user status');
@@ -130,7 +127,6 @@ const UserManagement: React.FC = () => {
       await api.delete(`/users/${userId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      toast.success('User deleted successfully');
       fetchUsers();
     } catch (error: any) {
       toast.error(error.response?.data?.detail || 'Failed to delete user');

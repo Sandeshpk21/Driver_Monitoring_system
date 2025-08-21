@@ -107,7 +107,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       localStorage.setItem('refresh_token', response.refresh_token);
       localStorage.setItem('user', JSON.stringify(response.user));
       
-      toast.success('Login successful!');
       navigate('/');
     } catch (error: any) {
       toast.error(error.response?.data?.detail || 'Login failed');
@@ -118,7 +117,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const register = async (data: RegisterData) => {
     try {
       const response = await authService.register(data);
-      toast.success('Registration successful! Please login.');
       navigate('/login');
     } catch (error: any) {
       toast.error(error.response?.data?.detail || 'Registration failed');
@@ -128,7 +126,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const logout = () => {
     handleLogout();
-    toast.info('Logged out successfully');
   };
 
   const handleLogout = () => {
