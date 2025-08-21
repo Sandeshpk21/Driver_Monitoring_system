@@ -29,6 +29,7 @@ const About = React.lazy(() => import('./pages/About'));
 const UserManagement = React.lazy(() => import('./pages/UserManagement'));
 const FleetDashboard = React.lazy(() => import('./pages/FleetDashboard'));
 const SystemAnalytics = React.lazy(() => import('./pages/SystemAnalytics'));
+const AdminPanel = React.lazy(() => import('./pages/AdminPanel'));
 
 const darkTheme = createTheme({
   palette: {
@@ -230,7 +231,7 @@ const AppContent: React.FC = () => {
               <ProtectedRoute>
                 <RoleGuard allowedRoles={['admin']}>
                   <AuthenticatedLayout>
-                    <div>Admin Panel - Coming Soon</div>
+                    <AdminPanel />
                   </AuthenticatedLayout>
                 </RoleGuard>
               </ProtectedRoute>
