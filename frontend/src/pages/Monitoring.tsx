@@ -10,15 +10,25 @@ import AlertPanel from '../components/AlertPanel';
 import MetricsPanel from '../components/MetricsPanel';
 import { WebSocketService } from '../services/websocket';
 import { DetectionResult } from '../types';
+import { SoundAlertService, SevereAlertTracker } from '../services/soundAlert';
 
 const Monitoring: React.FC = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [isCalibrated, setIsCalibrated] = useState(false);
   const [isMonitoring, setIsMonitoring] = useState(false);
   const [detectionResult, setDetectionResult] = useState<DetectionResult | null>(null);
+  const [soundAlertTriggered, setSoundAlertTriggered] = useState(false);
+  const [severealertCount, setSevereAlertCount] = useState(0);
+  
   const wsService = useRef<WebSocketService | null>(null);
+  const soundService = useRef<SoundAlertService | null>(null);
+  const alertTracker = useRef<SevereAlertTracker | null>(null);
 
   useEffect(() => {
+    // Initialize sound alert services
+    soundService.current = new SoundAlertService();
+    alertTracker.current = new SevereAlertTracker(soundService.current);
+    
     // Get token from localStorage
     const token = localStorage.getItem('access_token');
     
@@ -51,6 +61,45 @@ const Monitoring: React.FC = () => {
         // Update monitoring state if present in response
         if (data.is_monitoring !== undefined) {
           setIsMonitoring(data.is_monitoring);
+        }
+        
+        // Process severe alerts for sound notifications
+        // Use actual monitoring state from data to avoid timing issues
+        const actualMonitoringState = data.is_monitoring !== undefined ? data.is_monitoring : isMonitoring;
+        if (data.alerts && alertTracker.current && actualMonitoringState) {
+          console.log('[Monitoring] Processing alerts for sound:', {
+            alertCount: data.alerts.length,
+            alerts: data.alerts,
+            isMonitoring_reactState: isMonitoring,
+            isMonitoring_actualData: data.is_monitoring,
+            actualMonitoringState,
+            hasTracker: !!alertTracker.current
+          });
+          
+          const soundTriggered = alertTracker.current.processSevereAlerts(data.alerts);
+          const currentCount = alertTracker.current.getCurrentAlertCount();
+          
+          console.log('[Monitoring] Sound processing result:', {
+            soundTriggered,
+            currentCount
+          });
+          
+          setSoundAlertTriggered(soundTriggered);
+          setSevereAlertCount(currentCount);
+          
+          // Reset sound alert indicator after 2 seconds
+          if (soundTriggered) {
+            setTimeout(() => setSoundAlertTriggered(false), 2000);
+          }
+        } else {
+          console.log('[Monitoring] Skipping sound processing:', {
+            hasAlerts: !!data.alerts,
+            alertCount: data.alerts ? data.alerts.length : 0,
+            hasTracker: !!alertTracker.current,
+            isMonitoring_reactState: isMonitoring,
+            isMonitoring_actualData: data.is_monitoring,
+            actualMonitoringState: data.is_monitoring !== undefined ? data.is_monitoring : isMonitoring
+          });
         }
       }
     };
@@ -101,6 +150,17 @@ const Monitoring: React.FC = () => {
     }
   };
 
+  const handleTestSound = async () => {
+    if (soundService.current) {
+      console.log('[Monitoring] Manual sound test triggered');
+      try {
+        await soundService.current.playAlertSound();
+      } catch (error) {
+        console.error('[Monitoring] Sound test failed:', error);
+      }
+    }
+  };
+
   return (
     <Container maxWidth="xl" sx={{ mt: { xs: 1, sm: 2, md: 3 }, mb: { xs: 1, sm: 2, md: 3 }, px: { xs: 1, sm: 2 } }}>
       <Grid container spacing={{ xs: 1, sm: 2, md: 3 }}>
@@ -122,6 +182,9 @@ const Monitoring: React.FC = () => {
               isConnected={isConnected}
               onStartMonitoring={handleStartMonitoring}
               onStopMonitoring={handleStopMonitoring}
+              soundAlertTriggered={soundAlertTriggered}
+              severeAlertCount={severealertCount}
+              onTestSound={handleTestSound}
             />
           </Paper>
         </Grid>

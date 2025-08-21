@@ -1,7 +1,7 @@
 import React, { useRef, useCallback, useEffect, useState } from 'react';
 import Webcam from 'react-webcam';
 import { Box, Button, Typography, IconButton } from '@mui/material';
-import { Videocam, VideocamOff, CameraAlt, PlayArrow, Stop, Refresh } from '@mui/icons-material';
+import { Videocam, VideocamOff, CameraAlt, PlayArrow, Stop, Refresh, VolumeUp } from '@mui/icons-material';
 import { DetectionResult } from '../types';
 
 interface VideoMonitorProps {
@@ -14,6 +14,9 @@ interface VideoMonitorProps {
   isConnected: boolean;
   onStartMonitoring: () => void;
   onStopMonitoring: () => void;
+  soundAlertTriggered?: boolean;
+  severeAlertCount?: number;
+  onTestSound?: () => void;
 }
 
 const VideoMonitor: React.FC<VideoMonitorProps> = ({
@@ -26,6 +29,9 @@ const VideoMonitor: React.FC<VideoMonitorProps> = ({
   isConnected,
   onStartMonitoring,
   onStopMonitoring,
+  soundAlertTriggered = false,
+  severeAlertCount = 0,
+  onTestSound,
 }) => {
   const webcamRef = useRef<Webcam>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -338,6 +344,24 @@ const VideoMonitor: React.FC<VideoMonitorProps> = ({
                 <Refresh />
               </IconButton>
             )}
+            
+            {/* Test Sound button */}
+            {onTestSound && (
+              <IconButton
+                onClick={onTestSound}
+                sx={{
+                  backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                  color: '#4caf50',
+                  '&:hover': {
+                    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                  },
+                  padding: { xs: '6px', sm: '8px' },
+                }}
+                title="Test Sound Alert"
+              >
+                <VolumeUp />
+              </IconButton>
+            )}
           </Box>
         </Box>
 
@@ -365,6 +389,24 @@ const VideoMonitor: React.FC<VideoMonitorProps> = ({
           <Typography variant="caption" sx={{ color: isCalibrated ? '#4caf50' : '#ff9800', fontSize: { xs: '0.625rem', sm: '0.75rem' } }}>
             {isCalibrated ? '✓ Calibrated' : '⚠ Calibration Required'}
           </Typography>
+          
+          {/* Sound Alert Status */}
+          {isMonitoring && (
+            <Typography 
+              variant="caption" 
+              sx={{ 
+                color: soundAlertTriggered ? '#ff1744' : (severeAlertCount > 0 ? '#ff9800' : '#4caf50'),
+                fontSize: { xs: '0.625rem', sm: '0.75rem' },
+                fontWeight: soundAlertTriggered ? 'bold' : 'normal'
+              }}
+            >
+              {soundAlertTriggered ? '🔊 Sound Alert!' : 
+               severeAlertCount === 1 ? '⏳ Grace Period' :
+               severeAlertCount === 2 ? '⚠ Initial Alert' :
+               severeAlertCount === 3 ? '🚨 Maximum Alert' :
+               '🔇 Audio Ready'}
+            </Typography>
+          )}
         </Box>
       </Box>
     </Box>
