@@ -94,6 +94,13 @@ const Monitoring: React.FC = () => {
     }
   };
 
+  const handleStartRecalibration = () => {
+    if (wsService.current && isConnected) {
+      wsService.current.startCalibration();
+      setIsCalibrated(false); // Reset calibration state to show calibration UI
+    }
+  };
+
   return (
     <Container maxWidth="xl" sx={{ mt: { xs: 1, sm: 2, md: 3 }, mb: { xs: 1, sm: 2, md: 3 }, px: { xs: 1, sm: 2 } }}>
       <Grid container spacing={{ xs: 1, sm: 2, md: 3 }}>
@@ -109,6 +116,7 @@ const Monitoring: React.FC = () => {
               onFrameCapture={handleFrameCapture}
               detectionResult={detectionResult}
               onCalibrate={handleCalibrate}
+              onStartRecalibration={handleStartRecalibration}
               isCalibrated={isCalibrated}
               isMonitoring={isMonitoring}
               isConnected={isConnected}

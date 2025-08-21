@@ -1,13 +1,14 @@
 import React, { useRef, useCallback, useEffect, useState } from 'react';
 import Webcam from 'react-webcam';
 import { Box, Button, Typography, IconButton } from '@mui/material';
-import { Videocam, VideocamOff, CameraAlt, PlayArrow, Stop } from '@mui/icons-material';
+import { Videocam, VideocamOff, CameraAlt, PlayArrow, Stop, Refresh } from '@mui/icons-material';
 import { DetectionResult } from '../types';
 
 interface VideoMonitorProps {
   onFrameCapture: (imageData: string) => void;
   detectionResult: DetectionResult | null;
   onCalibrate: (calibrationData: any) => void;
+  onStartRecalibration: () => void;
   isCalibrated: boolean;
   isMonitoring: boolean;
   isConnected: boolean;
@@ -19,6 +20,7 @@ const VideoMonitor: React.FC<VideoMonitorProps> = ({
   onFrameCapture,
   detectionResult,
   onCalibrate,
+  onStartRecalibration,
   isCalibrated,
   isMonitoring,
   isConnected,
@@ -318,6 +320,24 @@ const VideoMonitor: React.FC<VideoMonitorProps> = ({
             >
               <CameraAlt />
             </IconButton>
+            
+            {/* Recalibration button - only show when already calibrated */}
+            {isCalibrated && (
+              <IconButton
+                onClick={onStartRecalibration}
+                sx={{
+                  backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                  color: '#ffeb3b',
+                  '&:hover': {
+                    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                  },
+                  padding: { xs: '6px', sm: '8px' },
+                }}
+                title="Recalibrate"
+              >
+                <Refresh />
+              </IconButton>
+            )}
           </Box>
         </Box>
 

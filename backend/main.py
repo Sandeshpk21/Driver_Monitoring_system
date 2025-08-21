@@ -283,6 +283,15 @@ async def websocket_endpoint(websocket: WebSocket):
                     "is_monitoring": False
                 })
             
+            elif message.get("type") == "start_calibration":
+                # Reset processor to calibration mode
+                processor.calibration_mode = True
+                await websocket.send_json({
+                    "type": "calibration_started",
+                    "calibration_mode": True,
+                    "message": "Calibration mode activated. Please align face naturally."
+                })
+            
             elif message.get("type") == "calibrate":
                 calibration_data = CalibrationData(**message.get("data", {}))
                 processor.calibrate(calibration_data)
