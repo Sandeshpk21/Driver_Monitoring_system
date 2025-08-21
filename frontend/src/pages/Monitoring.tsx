@@ -121,20 +121,20 @@ const Monitoring: React.FC = () => {
         {/* Side Panels */}
         <Grid item xs={12} lg={4}>
           <Grid container spacing={{ xs: 1, sm: 2 }} direction={{ xs: 'column', sm: 'row', lg: 'column' }}>
-            {/* Alerts */}
-            <Grid item xs={12} sm={6} lg={12}>
-              <Paper sx={{ p: { xs: 1.5, sm: 2 }, backgroundColor: '#1a1a1a', maxHeight: { xs: 200, sm: 250, lg: 300 }, overflow: 'auto' }}>
-                <AlertPanel alerts={detectionResult?.alerts || []} />
-              </Paper>
-            </Grid>
-
-            {/* Metrics */}
+            {/* Driver Status - Moved to top for better visibility */}
             <Grid item xs={12}>
               <Paper sx={{ p: { xs: 1.5, sm: 2 }, backgroundColor: '#1a1a1a' }}>
                 <MetricsPanel 
                   metrics={detectionResult?.metrics || {}}
                   states={detectionResult?.states || {}}
                 />
+              </Paper>
+            </Grid>
+
+            {/* Alerts - Moved to bottom */}
+            <Grid item xs={12} sm={6} lg={12}>
+              <Paper sx={{ p: { xs: 1.5, sm: 2 }, backgroundColor: '#1a1a1a', maxHeight: { xs: 200, sm: 250, lg: 300 }, overflow: 'auto' }}>
+                <AlertPanel alerts={detectionResult?.alerts || []} />
               </Paper>
             </Grid>
           </Grid>
