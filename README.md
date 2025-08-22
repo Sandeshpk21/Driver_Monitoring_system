@@ -1,26 +1,55 @@
 # Driver Monitoring System - Web Application
 
-A real-time driver monitoring system that detects drowsiness and distraction using computer vision and AI. Built with FastAPI (backend), React (frontend) and SQLite (Database).
+A comprehensive real-time driver monitoring system that detects drowsiness and distraction using computer vision and AI, with advanced alert management and analytics. Built with FastAPI (backend), React/TypeScript (frontend), SQLite (Database), and WebSocket for real-time communication.
 
 ## Features
 
 - **Real-time Detection**:
   - Eye closure and blink rate monitoring
-  - Yawn detection
+  - Yawn detection with duration tracking
   - Head pose tracking (turn, tilt, droop)
   - Gaze deviation monitoring
   - Hand detection (phone use, texting)
+  - Multi-state detection (drowsiness, distraction, combined states)
   
-- **Alert System**:
+- **Progressive Sound Alert System**:
+  - **Phase 1 (0-5s)**: Grace period - no sound alerts
+  - **Phase 2 (5-10s)**: Initial urgency - sound every 2 seconds
+  - **Phase 3 (10s+)**: Maximum urgency - sound every 1 second
+  - Custom alert sound support (`/sounds/severe-alert.wav`)
+  - Web Audio API fallback for system beep
+  - Manual sound test button for verification
+  - Smart reset logic (3-second gap resets phases)
+  
+- **Alert Management**:
   - Color-coded alerts (white/yellow/red)
-  - Severity levels (mild/moderate/severe)
+  - Severity levels (mild/moderate/severe/warning)
   - Combined drowsiness and distraction assessment
+  - Real-time alert panel with timestamps
+  - Alert frequency tracking and analysis
+  
+- **User Management System**:
+  - Role-based access control (Admin, Supervisor, Driver)
+  - Driver profile management with license tracking
+  - Supervisor assignment and team management
+  - User authentication and session management
+  - Profile editing and status management
+  
+- **Analytics Dashboard**:
+  - Real-time alert statistics
+  - Daily alert trends visualization
+  - Risk score calculation and tracking
+  - Alert distribution by severity
+  - Driver performance metrics
+  - Team-level analytics for supervisors
   
 - **Interactive UI**:
   - Live webcam feed with overlay
   - Real-time metrics display
   - Configurable thresholds
-  - Calibration system
+  - One-click calibration system
+  - Responsive design for mobile/desktop
+  - Dark mode support
 
 ## Project Structure
 
@@ -33,16 +62,36 @@ Driver_MS/
 │   │   └── config.py        # Settings management
 │   ├── models/
 │   │   └── detection.py     # Data models
+│   ├── database/
+│   │   ├── models.py        # SQLAlchemy models
+│   │   └── crud.py          # Database operations
+│   ├── routers/
+│   │   ├── users.py         # User management endpoints
+│   │   └── analytics.py     # Analytics endpoints
 │   └── requirements.txt
 ├── frontend/
 │   ├── src/
 │   │   ├── components/      # React components
-│   │   ├── services/        # WebSocket service
+│   │   │   ├── VideoMonitor.tsx    # Video feed component
+│   │   │   ├── AlertPanel.tsx      # Alert display
+│   │   │   └── MetricsDisplay.tsx  # Metrics visualization
+│   │   ├── pages/           # Page components
+│   │   │   ├── Dashboard.tsx       # Main dashboard
+│   │   │   ├── Monitoring.tsx      # Live monitoring
+│   │   │   ├── UserManagement.tsx  # User administration
+│   │   │   └── Analytics.tsx       # Analytics dashboard
+│   │   ├── services/        
+│   │   │   ├── websocket.ts        # WebSocket service
+│   │   │   ├── soundAlert.ts       # Sound alert system
+│   │   │   └── api.ts              # API client
 │   │   ├── types/           # TypeScript types
 │   │   └── App.tsx          # Main application
+│   ├── public/
+│   │   └── sounds/          # Alert sound files
 │   ├── package.json
 │   └── vite.config.ts
-└── dmsv7.py                  # Original reference script
+├── database.db              # SQLite database
+└── dmsv7.py                # Original reference script
 ```
 
 ## Installation
@@ -122,14 +171,29 @@ The frontend will start on `http://localhost:3000`
 
 ### REST API
 
+#### Core System
 - `GET /api/config` - Get current configuration
 - `POST /api/config` - Update configuration
 - `POST /api/calibrate` - Calibrate the system
 - `POST /api/process-frame` - Process a single frame
 
+#### User Management
+- `GET /api/users` - List all users
+- `POST /api/users` - Create new user
+- `PUT /api/users/{id}` - Update user details
+- `DELETE /api/users/{id}` - Delete user
+- `POST /api/users/login` - User authentication
+- `GET /api/users/current` - Get current user info
+
+#### Analytics
+- `GET /api/analytics/alerts` - Get alert statistics
+- `GET /api/analytics/daily-trends` - Get daily alert trends
+- `GET /api/analytics/risk-scores` - Get driver risk scores
+- `GET /api/analytics/team-stats` - Get team statistics (supervisors)
+
 ### WebSocket
 
-- `ws://localhost:8000/ws` - Real-time frame processing
+- `ws://localhost:8000/ws` - Real-time frame processing and alert streaming
 
 ## Configuration Options
 
@@ -153,11 +217,21 @@ The frontend will start on `http://localhost:3000`
    - Detects hand positions
    - Calculates metrics (EAR, MAR, etc.)
    - Applies detection algorithms
+   - Stores alerts in SQLite database
 4. Detection results are sent back to frontend
-5. **Frontend** displays:
-   - Alert overlays on video
-   - Real-time metrics
-   - State indicators
+5. **Frontend** processes alerts:
+   - Displays alert overlays on video
+   - Updates real-time metrics
+   - Triggers progressive sound alerts based on severity
+   - Shows alert history in panel
+6. **Sound Alert System**:
+   - Phase 1 (0-5s): Grace period monitoring
+   - Phase 2 (5-10s): Sound every 2 seconds
+   - Phase 3 (10s+): Sound every 1 second
+7. **Analytics** are computed from stored data:
+   - Real-time risk scores
+   - Daily trend analysis
+   - Team performance metrics
 
 ## Performance Considerations
 
@@ -186,14 +260,44 @@ The frontend will start on `http://localhost:3000`
 - **WebSocket connection fails**: Ensure backend is running
 - **Slow performance**: Reduce frame resolution in settings
 
+## Sound Alert Configuration
+
+The progressive sound alert system provides intelligent audio feedback:
+
+### Alert Phases
+1. **Grace Period (0-5s)**: No sound, allowing brief incidents to self-correct
+2. **Initial Urgency (5-10s)**: Sound every 2 seconds for persistent issues
+3. **Maximum Urgency (10s+)**: Sound every 1 second for critical situations
+
+### Sound Files
+- Place custom alert sounds in `frontend/public/sounds/`
+- Default file: `severe-alert.wav`
+- Fallback: Web Audio API system beep
+
+### Testing Sound Alerts
+- Use the 🔊 button in the video monitor to test audio
+- Monitor console logs for detailed alert processing
+- Status indicators: "🔇 Audio Ready", "⏳ Grace Period", "⚠ Initial Alert", "🚨 Maximum Alert"
+
+## User Roles and Permissions
+
+| Role | Permissions |
+|------|------------|
+| **Admin** | Full system access, user management, all analytics |
+| **Supervisor** | View team analytics, manage assigned drivers |
+| **Driver** | View own monitoring data, basic settings |
+
 ## Future Improvements
 
+- ✅ ~~Add audio alerts~~ (Implemented with progressive system)
+- ✅ ~~Implement alert history/logging~~ (Implemented in database)
 - Add recording functionality
-- Implement alert history/logging
-- Add audio alerts
 - Support multiple camera angles
 - Machine learning model fine-tuning
 - Mobile app development
+- Cloud deployment and multi-tenant support
+- Advanced reporting and export features
+- Integration with fleet management systems
 
 ## License
 
