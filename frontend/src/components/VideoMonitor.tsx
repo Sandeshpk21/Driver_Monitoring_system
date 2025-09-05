@@ -3,6 +3,8 @@ import Webcam from 'react-webcam';
 import { Box, Button, Typography, IconButton } from '@mui/material';
 import { Videocam, VideocamOff, CameraAlt, PlayArrow, Stop, Refresh, VolumeUp } from '@mui/icons-material';
 import { DetectionResult } from '../types';
+import { CameraService } from '../services/cameraService';
+import { Capacitor } from '@capacitor/core';
 
 interface VideoMonitorProps {
   onFrameCapture: (imageData: string) => void;
@@ -34,10 +36,13 @@ const VideoMonitor: React.FC<VideoMonitorProps> = ({
   onTestSound,
 }) => {
   const webcamRef = useRef<Webcam>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isStreaming, setIsStreaming] = useState(true);
   const [showLandmarks, setShowLandmarks] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const cameraService = useRef<CameraService>(new CameraService());
+  const [isMobile] = useState(() => Capacitor.isNativePlatform());
 
   const videoConstraints = {
     width: { ideal: 1280 },
@@ -45,19 +50,42 @@ const VideoMonitor: React.FC<VideoMonitorProps> = ({
     facingMode: "user"
   };
 
-  const captureFrame = useCallback(() => {
-    if (webcamRef.current && isStreaming) {
-      const imageSrc = webcamRef.current.getScreenshot();
-      if (imageSrc) {
-        onFrameCapture(imageSrc);
+  const captureFrame = useCallback(async () => {
+    if (isStreaming) {
+      if (isMobile) {
+        // Mobile: Use camera service to capture frame
+        const base64 = await cameraService.current.captureFrame();
+        if (base64) {
+          onFrameCapture(`data:image/jpeg;base64,${base64}`);
+        }
+      } else if (webcamRef.current) {
+        // Web: Use webcam ref
+        const imageSrc = webcamRef.current.getScreenshot();
+        if (imageSrc) {
+          onFrameCapture(imageSrc);
+        }
       }
     }
-  }, [onFrameCapture, isStreaming]);
+  }, [onFrameCapture, isStreaming, isMobile]);
 
   useEffect(() => {
-    // Start capturing frames at 15 FPS
+    // Initialize mobile camera if needed
+    const initMobileCamera = async () => {
+      if (isMobile && videoRef.current && isStreaming) {
+        await cameraService.current.initializeCamera(videoRef.current);
+      }
+    };
+    
+    if (isMobile) {
+      initMobileCamera();
+    }
+    
+    // Start capturing frames at 15 FPS (or 5 FPS for mobile)
     if (isStreaming) {
-      intervalRef.current = setInterval(captureFrame, 67); // ~15 FPS
+      const interval = isMobile ? 200 : 67; // Mobile: 5 FPS, Web: 15 FPS
+      intervalRef.current = setInterval(() => {
+        captureFrame();
+      }, interval);
     } else {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
@@ -232,13 +260,23 @@ const VideoMonitor: React.FC<VideoMonitorProps> = ({
   return (
     <Box sx={{ position: 'relative', width: '100%', height: '100%' }}>
       <Box sx={{ position: 'relative', display: 'inline-block', width: '100%' }}>
-        <Webcam
-          ref={webcamRef}
-          audio={false}
-          screenshotFormat="image/jpeg"
-          videoConstraints={videoConstraints}
-          style={{ width: '100%', height: 'auto', display: 'block' }}
-        />
+        {isMobile ? (
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+            style={{ width: '100%', height: 'auto', display: 'block' }}
+          />
+        ) : (
+          <Webcam
+            ref={webcamRef}
+            audio={false}
+            screenshotFormat="image/jpeg"
+            videoConstraints={videoConstraints}
+            style={{ width: '100%', height: 'auto', display: 'block' }}
+          />
+        )}
         
         {/* Canvas for landmarks overlay */}
         <canvas

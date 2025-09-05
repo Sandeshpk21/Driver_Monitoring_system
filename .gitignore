@@ -47,6 +47,12 @@ frontend/dist/
 frontend/build/
 *.local
 
+# Capacitor
+frontend/android/
+frontend/ios/
+frontend/.capacitor/
+frontend/capacitor-cordova-android-plugins/
+
 # IDE
 .vscode/
 .idea/
@@ -79,3 +85,5 @@ coverage/
 .temp/
 .tmp/
 nul
+
+.claude/

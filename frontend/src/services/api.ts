@@ -1,8 +1,9 @@
 import axios from 'axios';
+import { mobileConfig } from '../config/mobile';
 
 // Create axios instance
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: mobileConfig.API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },

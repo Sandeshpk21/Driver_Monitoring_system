@@ -1,4 +1,5 @@
 import { DetectionResult, Config } from '../types';
+import { mobileConfig } from '../config/mobile';
 
 export class WebSocketService {
   private ws: WebSocket | null = null;
@@ -14,8 +15,9 @@ export class WebSocketService {
   public onAuthSuccess?: () => void;
   public onAuthError?: (message: string) => void;
 
-  constructor(url: string, token?: string) {
-    this.url = url;
+  constructor(url?: string, token?: string) {
+    // Use mobile config URL if not provided
+    this.url = url || mobileConfig.WS_URL;
     this.token = token || localStorage.getItem('access_token');
     this.connect();
   }

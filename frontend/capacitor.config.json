@@ -1,0 +1,25 @@
+{
+  "appId": "com.drivermonitor.app",
+  "appName": "Driver Monitor",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https",
+    "cleartext": true,
+    "allowNavigation": [
+      "*"
+    ]
+  },
+  "plugins": {
+    "Camera": {
+      "permissions": [
+        "camera"
+      ],
+      "cameraUsageDescription": "This app needs camera access to monitor driver behavior"
+    }
+  },
+  "android": {
+    "allowMixedContent": true,
+    "backgroundColor": "#ffffff",
+    "webContentsDebuggingEnabled": true
+  }
+}
