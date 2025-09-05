@@ -17,6 +17,10 @@ import {
   MenuItem,
   Grid,
   Button,
+  FormControl,
+  InputLabel,
+  Select,
+  Alert as MuiAlert,
 } from '@mui/material';
 import {
   Refresh,
@@ -26,7 +30,9 @@ import {
   Info,
 } from '@mui/icons-material';
 import { format } from 'date-fns';
+import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
+import { User } from '../types';
 
 interface Alert {
   id: string;
@@ -41,11 +47,13 @@ interface Alert {
 }
 
 const AlertHistory: React.FC = () => {
+  const { user, token, hasRole } = useAuth();
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
   const [totalAlerts, setTotalAlerts] = useState(0);
+  const [users, setUsers] = useState<User[]>([]);
   
   // Filters
   const [filters, setFilters] = useState({
@@ -53,11 +61,27 @@ const AlertHistory: React.FC = () => {
     severity: '',
     startDate: '',
     endDate: '',
+    user_id: '', // New filter for managers/admins
   });
 
   useEffect(() => {
     fetchAlerts();
+    // Fetch users list for managers/admins
+    if (hasRole(['manager', 'admin'])) {
+      fetchUsers();
+    }
   }, [page, rowsPerPage, filters]);
+  
+  const fetchUsers = async () => {
+    try {
+      const response = await api.get('/users/?role=driver', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setUsers(response.data);
+    } catch (error) {
+      console.error('Failed to fetch users:', error);
+    }
+  };
 
   const fetchAlerts = async () => {
     setLoading(true);
@@ -71,6 +95,7 @@ const AlertHistory: React.FC = () => {
       if (filters.severity) params.append('severity', filters.severity);
       if (filters.startDate) params.append('start_date', filters.startDate);
       if (filters.endDate) params.append('end_date', filters.endDate);
+      if (filters.user_id && hasRole(['manager', 'admin'])) params.append('user_id', filters.user_id);
 
       const response = await api.get(`/alerts/history?${params}`);
       setAlerts(response.data);
@@ -157,7 +182,14 @@ const AlertHistory: React.FC = () => {
       {/* Header */}
       <Paper sx={{ p: { xs: 2, sm: 3 }, mb: { xs: 2, sm: 3 }, backgroundColor: '#1a1a1a' }}>
         <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' }, gap: { xs: 2, sm: 0 } }}>
-          <Typography variant="h5" sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem' } }}>Alert History</Typography>
+          <Box>
+            <Typography variant="h5" sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem' } }}>Alert History</Typography>
+            {hasRole(['manager', 'admin']) && (
+              <Typography variant="body2" color="textSecondary" sx={{ mt: 0.5 }}>
+                {filters.user_id ? `Viewing alerts for selected driver` : 'Viewing alerts for all drivers'}
+              </Typography>
+            )}
+          </Box>
           <Box sx={{ display: 'flex', gap: 1, width: { xs: '100%', sm: 'auto' } }}>
             <Button
               variant="outlined"
@@ -229,7 +261,36 @@ const AlertHistory: React.FC = () => {
               InputLabelProps={{ shrink: true }}
             />
           </Grid>
+          
+          {/* User Filter for Managers/Admins */}
+          {hasRole(['manager', 'admin']) && (
+            <Grid item xs={12} sm={6} md={3}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Driver</InputLabel>
+                <Select
+                  value={filters.user_id}
+                  label="Driver"
+                  onChange={(e) => handleFilterChange('user_id', e.target.value)}
+                >
+                  <MenuItem value="">All Drivers</MenuItem>
+                  {users.map((user) => (
+                    <MenuItem key={user.id} value={user.id}>
+                      {user.username} - {user.full_name || user.email}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+          )}
         </Grid>
+        
+        {/* Role Information */}
+        {hasRole(['manager', 'admin']) && (
+          <MuiAlert severity="info" sx={{ mt: 2 }}>
+            You have {user?.role} privileges and can view alerts from all drivers.
+            {filters.user_id && ` Currently filtered to show alerts from a specific driver.`}
+          </MuiAlert>
+        )}
       </Paper>
 
       {/* Alerts Table */}

@@ -12,7 +12,9 @@ import 'react-toastify/dist/ReactToastify.css';
 
 import ErrorBoundary from './components/ErrorBoundary';
 import Navigation from './components/Navigation';
+import BottomNavigation from './components/BottomNavigation';
 import ProtectedRoute from './components/ProtectedRoute';
+import { RoleGuard } from './components/RoleGuard';
 import { AuthProvider } from './contexts/AuthContext';
 import { useAuth } from './contexts/AuthContext';
 
@@ -24,6 +26,10 @@ const AlertHistory = React.lazy(() => import('./pages/AlertHistory'));
 const Analytics = React.lazy(() => import('./pages/Analytics'));
 const Settings = React.lazy(() => import('./pages/Settings'));
 const About = React.lazy(() => import('./pages/About'));
+const UserManagement = React.lazy(() => import('./pages/UserManagement'));
+const FleetDashboard = React.lazy(() => import('./pages/FleetDashboard'));
+const SystemAnalytics = React.lazy(() => import('./pages/SystemAnalytics'));
+const AdminPanel = React.lazy(() => import('./pages/AdminPanel'));
 
 const darkTheme = createTheme({
   palette: {
@@ -61,17 +67,41 @@ const AuthenticatedLayout: React.FC<{ children: React.ReactNode }> = ({ children
   return (
     <>
       <Navigation />
-      {children}
+      <Box sx={{ 
+        pb: { xs: '64px', md: '0' }, // Add bottom padding on mobile for bottom navigation
+        minHeight: 'calc(100vh - 64px)', // Account for top navigation height
+      }}>
+        {children}
+      </Box>
+      <BottomNavigation />
     </>
   );
 };
 
 // Main app content with routes
 const AppContent: React.FC = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
+  
+  const getDefaultRoute = () => {
+    if (!user) return '/login';
+    switch (user.role) {
+      case 'driver':
+        return '/';
+      case 'manager':
+      case 'admin':
+        return '/fleet';
+      default:
+        return '/';
+    }
+  };
 
   return (
-    <Box sx={{ flexGrow: 1, minHeight: '100vh', backgroundColor: '#0a0a0a' }}>
+    <Box sx={{ 
+      flexGrow: 1, 
+      minHeight: '100vh', 
+      backgroundColor: '#0a0a0a',
+      position: 'relative', // For proper bottom navigation positioning
+    }}>
       <Suspense fallback={<LoadingScreen />}>
         <Routes>
           {/* Public routes */}
@@ -97,9 +127,11 @@ const AppContent: React.FC = () => {
             path="/"
             element={
               <ProtectedRoute>
-                <AuthenticatedLayout>
-                  <Monitoring />
-                </AuthenticatedLayout>
+                <RoleGuard allowedRoles={['driver']} redirectTo="/fleet">
+                  <AuthenticatedLayout>
+                    <Monitoring />
+                  </AuthenticatedLayout>
+                </RoleGuard>
               </ProtectedRoute>
             }
           />
@@ -117,9 +149,11 @@ const AppContent: React.FC = () => {
             path="/analytics"
             element={
               <ProtectedRoute>
-                <AuthenticatedLayout>
-                  <Analytics />
-                </AuthenticatedLayout>
+                <RoleGuard allowedRoles={['driver']}>
+                  <AuthenticatedLayout>
+                    <Analytics />
+                  </AuthenticatedLayout>
+                </RoleGuard>
               </ProtectedRoute>
             }
           />
@@ -143,11 +177,71 @@ const AppContent: React.FC = () => {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/users"
+            element={
+              <ProtectedRoute>
+                <RoleGuard allowedRoles={['manager', 'admin']}>
+                  <AuthenticatedLayout>
+                    <UserManagement />
+                  </AuthenticatedLayout>
+                </RoleGuard>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/fleet"
+            element={
+              <ProtectedRoute>
+                <RoleGuard allowedRoles={['manager', 'admin']}>
+                  <AuthenticatedLayout>
+                    <FleetDashboard />
+                  </AuthenticatedLayout>
+                </RoleGuard>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/fleet-analytics"
+            element={
+              <ProtectedRoute>
+                <RoleGuard allowedRoles={['manager']}>
+                  <AuthenticatedLayout>
+                    <SystemAnalytics />
+                  </AuthenticatedLayout>
+                </RoleGuard>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/system-analytics"
+            element={
+              <ProtectedRoute>
+                <RoleGuard allowedRoles={['admin']}>
+                  <AuthenticatedLayout>
+                    <SystemAnalytics />
+                  </AuthenticatedLayout>
+                </RoleGuard>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute>
+                <RoleGuard allowedRoles={['admin']}>
+                  <AuthenticatedLayout>
+                    <AdminPanel />
+                  </AuthenticatedLayout>
+                </RoleGuard>
+              </ProtectedRoute>
+            }
+          />
 
-          {/* Default redirect */}
+          {/* Default redirect based on role */}
           <Route
             path="*"
-            element={<Navigate to={isAuthenticated ? "/" : "/login"} replace />}
+            element={<Navigate to={isAuthenticated ? getDefaultRoute() : "/login"} replace />}
           />
         </Routes>
       </Suspense>
@@ -165,7 +259,7 @@ function App() {
             <AppContent />
             <ToastContainer 
               theme="dark" 
-              position="bottom-right"
+              position="top-right"
               autoClose={3000}
               hideProgressBar={false}
               newestOnTop
@@ -174,6 +268,12 @@ function App() {
               pauseOnFocusLoss
               draggable
               pauseOnHover
+              toastStyle={{
+                marginTop: '70px', // Add margin to avoid overlapping with top navigation
+              }}
+              style={{
+                top: '70px', // Position below top navigation on mobile
+              }}
             />
           </AuthProvider>
         </Router>

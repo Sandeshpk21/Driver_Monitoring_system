@@ -122,6 +122,14 @@ export class WebSocketService {
     }
   }
 
+  public startCalibration() {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN && this.authenticated) {
+      this.ws.send(JSON.stringify({
+        type: 'start_calibration',
+      }));
+    }
+  }
+
   public calibrate(calibrationData: any) {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify({

@@ -17,6 +17,7 @@ class User(Base):
     email = Column(String, unique=True, nullable=False, index=True)
     hashed_password = Column(String, nullable=False)
     full_name = Column(String, nullable=True)
+    role = Column(String, nullable=False, default="driver")  # driver, manager, admin
     created_at = Column(DateTime, default=get_ist_datetime_for_db)
     updated_at = Column(DateTime, default=get_ist_datetime_for_db, onupdate=get_ist_datetime_for_db)
     is_active = Column(Boolean, default=True)

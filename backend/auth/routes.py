@@ -48,7 +48,8 @@ async def register(
         username=user_data.username,
         email=user_data.email,
         hashed_password=hashed_password,
-        full_name=user_data.full_name
+        full_name=user_data.full_name,
+        role=user_data.role if user_data.role else "driver"
     )
     
     db.add(new_user)
@@ -65,6 +66,7 @@ async def register(
         username=new_user.username,
         email=new_user.email,
         full_name=new_user.full_name,
+        role=new_user.role,
         is_active=new_user.is_active
     )
 
@@ -102,6 +104,7 @@ async def login(
             username=user.username,
             email=user.email,
             full_name=user.full_name,
+            role=user.role,
             is_active=user.is_active
         )
     )
@@ -116,6 +119,7 @@ async def get_current_user_info(
         username=current_user.username,
         email=current_user.email,
         full_name=current_user.full_name,
+        role=current_user.role,
         is_active=current_user.is_active
     )
 
@@ -159,6 +163,7 @@ async def refresh_token(
             username=user.username,
             email=user.email,
             full_name=user.full_name,
+            role=user.role,
             is_active=user.is_active
         )
     )

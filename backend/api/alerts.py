@@ -11,6 +11,7 @@ from utils.timezone import get_ist_datetime_for_db, now_ist
 from database.connection import get_db
 from database.models import User, Alert, MonitoringSession, AlertStatistics
 from auth.security import get_current_active_user
+from auth.permissions import require_manager_or_admin, get_accessible_user_ids
 from models.alert import AlertCreate, AlertResponse, AlertAnalytics, SessionResponse
 
 router = APIRouter(prefix="/api/alerts", tags=["Alerts"])
@@ -73,13 +74,31 @@ async def get_alert_history(
     end_date: Optional[datetime] = None,
     alert_type: Optional[str] = None,
     severity: Optional[str] = None,
+    user_id: Optional[str] = None,  # For managers/admins to view specific user
     limit: int = Query(100, le=1000),
     offset: int = 0,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ) -> List[AlertResponse]:
-    """Get alert history for current user"""
-    query = db.query(Alert).filter(Alert.user_id == current_user.id)
+    """Get alert history - drivers see own, managers/admins see all"""
+    # Check permissions
+    if user_id and user_id != current_user.id:
+        # Only managers and admins can view other users' data
+        if current_user.role not in ["manager", "admin"]:
+            user_id = current_user.id
+    else:
+        # If no user_id specified or it's the current user
+        if current_user.role in ["manager", "admin"] and not user_id:
+            # Managers/admins see all by default
+            query = db.query(Alert)
+        else:
+            user_id = user_id or current_user.id
+            query = db.query(Alert).filter(Alert.user_id == user_id)
+    
+    if user_id:
+        query = db.query(Alert).filter(Alert.user_id == user_id)
+    else:
+        query = db.query(Alert)
     
     if start_date:
         query = query.filter(Alert.timestamp >= start_date)
@@ -149,20 +168,44 @@ async def get_alert_analytics(
         reverse=True
     )[:5]
     
-    # Calculate risk score (0-100)
-    risk_score = min(100, (
-        severity_breakdown["severe"] * 10 +
-        severity_breakdown["moderate"] * 5 +
-        severity_breakdown["mild"] * 2
-    ))
-    
-    # Get recent sessions
+    # Get recent sessions first (needed for risk score calculation)
     recent_sessions = db.query(MonitoringSession).filter(
         and_(
             MonitoringSession.user_id == current_user.id,
             MonitoringSession.start_time >= start_date
         )
     ).order_by(MonitoringSession.start_time.desc()).limit(10).all()
+    
+    # Calculate risk score (0-100) based on incident rate and severity
+    total_monitoring_seconds = sum((s.duration_seconds or 0) for s in recent_sessions)
+    
+    if total_monitoring_seconds > 0 and total_alerts > 0:
+        # Group alerts into 5-second windows to avoid counting duplicate alerts
+        # This prevents multiple alerts per second from inflating the score
+        incident_windows = set()
+        for alert in alerts:
+            # Group alerts into 5-second time windows
+            window_start = int(alert.timestamp.timestamp() / 5) * 5
+            incident_windows.add(window_start)
+        
+        # Each incident window represents approximately 5 seconds of issues
+        incident_seconds = len(incident_windows) * 5
+        
+        # Calculate incident rate (percentage of monitoring time with issues)
+        incident_rate = min(100, (incident_seconds / total_monitoring_seconds) * 100)
+        
+        # Calculate severity factor (weighted average severity)
+        severity_weight = (
+            severity_breakdown["severe"] * 3.0 +
+            severity_breakdown["moderate"] * 1.5 +
+            severity_breakdown["mild"] * 0.5
+        ) / total_alerts
+        
+        # Final risk score: 70% based on incident rate, 30% based on severity
+        # This gives a more realistic score that won't immediately max out
+        risk_score = min(100, incident_rate * 0.7 + severity_weight * 30)
+    else:
+        risk_score = 0
     
     return AlertAnalytics(
         period=period,
@@ -185,13 +228,31 @@ async def get_alert_analytics(
 async def get_monitoring_sessions(
     limit: int = Query(20, le=100),
     offset: int = 0,
+    user_id: Optional[str] = None,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ) -> List[SessionResponse]:
-    """Get monitoring sessions for current user"""
-    sessions = db.query(MonitoringSession).filter(
-        MonitoringSession.user_id == current_user.id
-    ).order_by(
+    """Get monitoring sessions - drivers see own, managers/admins can see all"""
+    # Determine which user's sessions to fetch
+    if user_id and user_id != current_user.id:
+        # Only managers and admins can view other users' sessions
+        if current_user.role not in ["manager", "admin"]:
+            target_user_id = current_user.id
+        else:
+            target_user_id = user_id
+    else:
+        target_user_id = user_id or current_user.id
+    
+    # Build query
+    if current_user.role in ["manager", "admin"] and not user_id:
+        # Managers/admins see all sessions if no specific user requested
+        query = db.query(MonitoringSession)
+    else:
+        query = db.query(MonitoringSession).filter(
+            MonitoringSession.user_id == target_user_id
+        )
+    
+    sessions = query.order_by(
         MonitoringSession.start_time.desc()
     ).offset(offset).limit(limit).all()
     
@@ -286,15 +347,31 @@ async def get_daily_statistics(
             head_turn_count=sum(1 for a in alerts if "head turn" in a.message.lower()),
         )
         
-        # Calculate risk score
-        stats.daily_risk_score = min(100, (
-            stats.drowsiness_severe * 10 +
-            stats.drowsiness_moderate * 5 +
-            stats.drowsiness_mild * 2 +
-            stats.distraction_severe * 8 +
-            stats.distraction_moderate * 4 +
-            stats.distraction_mild * 1
-        ))
+        # Calculate risk score based on incident rate and severity
+        if stats.total_monitoring_time > 0:
+            # Estimate incident time based on alert types and severity
+            # Assume each incident type lasts for different durations
+            estimated_incident_seconds = (
+                (stats.drowsiness_severe + stats.distraction_severe) * 10 +  # Severe incidents ~10 seconds
+                (stats.drowsiness_moderate + stats.distraction_moderate) * 5 +  # Moderate ~5 seconds
+                (stats.drowsiness_mild + stats.distraction_mild) * 2  # Mild ~2 seconds
+            )
+            
+            # Calculate incident rate (percentage of time with issues)
+            incident_rate = min(100, (estimated_incident_seconds / stats.total_monitoring_time) * 100)
+            
+            # Calculate severity multiplier based on proportion of severe alerts
+            if stats.total_alerts > 0:
+                severe_proportion = (stats.drowsiness_severe + stats.distraction_severe) / stats.total_alerts
+                # Severity multiplier ranges from 1.0 to 1.5 based on severe alert proportion
+                severity_multiplier = 1.0 + (severe_proportion * 0.5)
+            else:
+                severity_multiplier = 1.0
+            
+            # Final risk score with severity weighting
+            stats.daily_risk_score = min(100, incident_rate * severity_multiplier)
+        else:
+            stats.daily_risk_score = 0
         
         db.add(stats)
         db.commit()

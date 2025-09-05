@@ -39,3 +39,14 @@ export interface CalibrationData {
   head_center_x: number;
   head_center_y: number;
 }
+
+export type UserRole = 'driver' | 'manager' | 'admin';
+
+export interface User {
+  id: string;
+  username: string;
+  email: string;
+  full_name?: string;
+  role: UserRole;
+  is_active: boolean;
+}

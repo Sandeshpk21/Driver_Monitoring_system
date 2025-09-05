@@ -10,15 +10,25 @@ import AlertPanel from '../components/AlertPanel';
 import MetricsPanel from '../components/MetricsPanel';
 import { WebSocketService } from '../services/websocket';
 import { DetectionResult } from '../types';
+import { SoundAlertService, SevereAlertTracker } from '../services/soundAlert';
 
 const Monitoring: React.FC = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [isCalibrated, setIsCalibrated] = useState(false);
   const [isMonitoring, setIsMonitoring] = useState(false);
   const [detectionResult, setDetectionResult] = useState<DetectionResult | null>(null);
+  const [soundAlertTriggered, setSoundAlertTriggered] = useState(false);
+  const [severealertCount, setSevereAlertCount] = useState(0);
+  
   const wsService = useRef<WebSocketService | null>(null);
+  const soundService = useRef<SoundAlertService | null>(null);
+  const alertTracker = useRef<SevereAlertTracker | null>(null);
 
   useEffect(() => {
+    // Initialize sound alert services
+    soundService.current = new SoundAlertService();
+    alertTracker.current = new SevereAlertTracker(soundService.current);
+    
     // Get token from localStorage
     const token = localStorage.getItem('access_token');
     
@@ -51,6 +61,45 @@ const Monitoring: React.FC = () => {
         // Update monitoring state if present in response
         if (data.is_monitoring !== undefined) {
           setIsMonitoring(data.is_monitoring);
+        }
+        
+        // Process severe alerts for sound notifications
+        // Use actual monitoring state from data to avoid timing issues
+        const actualMonitoringState = data.is_monitoring !== undefined ? data.is_monitoring : isMonitoring;
+        if (data.alerts && alertTracker.current && actualMonitoringState) {
+          console.log('[Monitoring] Processing alerts for sound:', {
+            alertCount: data.alerts.length,
+            alerts: data.alerts,
+            isMonitoring_reactState: isMonitoring,
+            isMonitoring_actualData: data.is_monitoring,
+            actualMonitoringState,
+            hasTracker: !!alertTracker.current
+          });
+          
+          const soundTriggered = alertTracker.current.processSevereAlerts(data.alerts);
+          const currentCount = alertTracker.current.getCurrentAlertCount();
+          
+          console.log('[Monitoring] Sound processing result:', {
+            soundTriggered,
+            currentCount
+          });
+          
+          setSoundAlertTriggered(soundTriggered);
+          setSevereAlertCount(currentCount);
+          
+          // Reset sound alert indicator after 2 seconds
+          if (soundTriggered) {
+            setTimeout(() => setSoundAlertTriggered(false), 2000);
+          }
+        } else {
+          console.log('[Monitoring] Skipping sound processing:', {
+            hasAlerts: !!data.alerts,
+            alertCount: data.alerts ? data.alerts.length : 0,
+            hasTracker: !!alertTracker.current,
+            isMonitoring_reactState: isMonitoring,
+            isMonitoring_actualData: data.is_monitoring,
+            actualMonitoringState: data.is_monitoring !== undefined ? data.is_monitoring : isMonitoring
+          });
         }
       }
     };
@@ -94,6 +143,24 @@ const Monitoring: React.FC = () => {
     }
   };
 
+  const handleStartRecalibration = () => {
+    if (wsService.current && isConnected) {
+      wsService.current.startCalibration();
+      setIsCalibrated(false); // Reset calibration state to show calibration UI
+    }
+  };
+
+  const handleTestSound = async () => {
+    if (soundService.current) {
+      console.log('[Monitoring] Manual sound test triggered');
+      try {
+        await soundService.current.playAlertSound();
+      } catch (error) {
+        console.error('[Monitoring] Sound test failed:', error);
+      }
+    }
+  };
+
   return (
     <Container maxWidth="xl" sx={{ mt: { xs: 1, sm: 2, md: 3 }, mb: { xs: 1, sm: 2, md: 3 }, px: { xs: 1, sm: 2 } }}>
       <Grid container spacing={{ xs: 1, sm: 2, md: 3 }}>
@@ -109,10 +176,15 @@ const Monitoring: React.FC = () => {
               onFrameCapture={handleFrameCapture}
               detectionResult={detectionResult}
               onCalibrate={handleCalibrate}
+              onStartRecalibration={handleStartRecalibration}
               isCalibrated={isCalibrated}
               isMonitoring={isMonitoring}
+              isConnected={isConnected}
               onStartMonitoring={handleStartMonitoring}
               onStopMonitoring={handleStopMonitoring}
+              soundAlertTriggered={soundAlertTriggered}
+              severeAlertCount={severealertCount}
+              onTestSound={handleTestSound}
             />
           </Paper>
         </Grid>
@@ -120,52 +192,20 @@ const Monitoring: React.FC = () => {
         {/* Side Panels */}
         <Grid item xs={12} lg={4}>
           <Grid container spacing={{ xs: 1, sm: 2 }} direction={{ xs: 'column', sm: 'row', lg: 'column' }}>
-            {/* Connection Status */}
-            <Grid item xs={12} sm={6} lg={12}>
-              <Paper sx={{ p: { xs: 1.5, sm: 2 }, backgroundColor: '#1a1a1a' }}>
-                <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' }, gap: 1 }}>
-                  <Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: { xs: 0.5, sm: 1 } }}>
-                      <Box
-                        sx={{
-                          width: 10,
-                          height: 10,
-                          borderRadius: '50%',
-                          backgroundColor: isConnected ? '#4caf50' : '#f44336',
-                        }}
-                      />
-                      <span style={{ fontSize: '0.875rem' }}>{isConnected ? 'Connected' : 'Disconnected'}</span>
-                    </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Box
-                        sx={{
-                          width: 10,
-                          height: 10,
-                          borderRadius: '50%',
-                          backgroundColor: isMonitoring ? '#4caf50' : '#ff9800',
-                        }}
-                      />
-                      <span style={{ fontSize: '0.875rem' }}>{isMonitoring ? 'Monitoring Active' : 'Monitoring Stopped'}</span>
-                    </Box>
-                  </Box>
-                </Box>
-              </Paper>
-            </Grid>
-
-            {/* Alerts */}
-            <Grid item xs={12} sm={6} lg={12}>
-              <Paper sx={{ p: { xs: 1.5, sm: 2 }, backgroundColor: '#1a1a1a', maxHeight: { xs: 200, sm: 250, lg: 300 }, overflow: 'auto' }}>
-                <AlertPanel alerts={detectionResult?.alerts || []} />
-              </Paper>
-            </Grid>
-
-            {/* Metrics */}
+            {/* Driver Status - Moved to top for better visibility */}
             <Grid item xs={12}>
               <Paper sx={{ p: { xs: 1.5, sm: 2 }, backgroundColor: '#1a1a1a' }}>
                 <MetricsPanel 
                   metrics={detectionResult?.metrics || {}}
                   states={detectionResult?.states || {}}
                 />
+              </Paper>
+            </Grid>
+
+            {/* Alerts - Moved to bottom */}
+            <Grid item xs={12} sm={6} lg={12}>
+              <Paper sx={{ p: { xs: 1.5, sm: 2 }, backgroundColor: '#1a1a1a', maxHeight: { xs: 200, sm: 250, lg: 300 }, overflow: 'auto' }}>
+                <AlertPanel alerts={detectionResult?.alerts || []} />
               </Paper>
             </Grid>
           </Grid>

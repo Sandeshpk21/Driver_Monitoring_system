@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import {
   Container,
   Paper,
@@ -18,14 +19,9 @@ import {
   Warning,
   Speed,
   AccessTime,
-  TrendingUp,
-  RemoveRedEye,
-  PhoneInTalk,
   DirectionsCar,
 } from '@mui/icons-material';
 import {
-  LineChart,
-  Line,
   BarChart,
   Bar,
   PieChart,
@@ -58,6 +54,7 @@ interface AnalyticsData {
 }
 
 const Analytics: React.FC = () => {
+  const { user } = useAuth();
   const [period, setPeriod] = useState('week');
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -120,7 +117,12 @@ const Analytics: React.FC = () => {
       {/* Header */}
       <Paper sx={{ p: { xs: 2, sm: 3 }, mb: { xs: 2, sm: 3 }, backgroundColor: '#1a1a1a' }}>
         <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' }, gap: { xs: 2, sm: 0 } }}>
-          <Typography variant="h5" sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem' } }}>Analytics Dashboard</Typography>
+          <Box>
+            <Typography variant="h5" sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem' } }}>Personal Analytics</Typography>
+            <Typography variant="body2" color="textSecondary" sx={{ mt: 0.5 }}>
+              Your driving performance metrics and insights
+            </Typography>
+          </Box>
           <FormControl size="small" sx={{ minWidth: 120 }}>
             <InputLabel>Period</InputLabel>
             <Select
@@ -134,6 +136,13 @@ const Analytics: React.FC = () => {
               <MenuItem value="year">This Year</MenuItem>
             </Select>
           </FormControl>
+        </Box>
+        
+        {/* Driver Information */}
+        <Box sx={{ mt: 2, p: 1.5, backgroundColor: 'rgba(144, 202, 249, 0.1)', borderRadius: 1 }}>
+          <Typography variant="body2" color="primary">
+            📊 Viewing personal analytics for: {user?.username}
+          </Typography>
         </Box>
       </Paper>
 

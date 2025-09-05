@@ -1,27 +1,37 @@
 import React, { useRef, useCallback, useEffect, useState } from 'react';
 import Webcam from 'react-webcam';
 import { Box, Button, Typography, IconButton } from '@mui/material';
-import { Videocam, VideocamOff, CameraAlt, PlayArrow, Stop } from '@mui/icons-material';
+import { Videocam, VideocamOff, CameraAlt, PlayArrow, Stop, Refresh, VolumeUp } from '@mui/icons-material';
 import { DetectionResult } from '../types';
 
 interface VideoMonitorProps {
   onFrameCapture: (imageData: string) => void;
   detectionResult: DetectionResult | null;
   onCalibrate: (calibrationData: any) => void;
+  onStartRecalibration: () => void;
   isCalibrated: boolean;
   isMonitoring: boolean;
+  isConnected: boolean;
   onStartMonitoring: () => void;
   onStopMonitoring: () => void;
+  soundAlertTriggered?: boolean;
+  severeAlertCount?: number;
+  onTestSound?: () => void;
 }
 
 const VideoMonitor: React.FC<VideoMonitorProps> = ({
   onFrameCapture,
   detectionResult,
   onCalibrate,
+  onStartRecalibration,
   isCalibrated,
   isMonitoring,
+  isConnected,
   onStartMonitoring,
   onStopMonitoring,
+  soundAlertTriggered = false,
+  severeAlertCount = 0,
+  onTestSound,
 }) => {
   const webcamRef = useRef<Webcam>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -316,6 +326,42 @@ const VideoMonitor: React.FC<VideoMonitorProps> = ({
             >
               <CameraAlt />
             </IconButton>
+            
+            {/* Recalibration button - only show when already calibrated */}
+            {isCalibrated && (
+              <IconButton
+                onClick={onStartRecalibration}
+                sx={{
+                  backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                  color: '#ffeb3b',
+                  '&:hover': {
+                    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                  },
+                  padding: { xs: '6px', sm: '8px' },
+                }}
+                title="Recalibrate"
+              >
+                <Refresh />
+              </IconButton>
+            )}
+            
+            {/* Test Sound button */}
+            {onTestSound && (
+              <IconButton
+                onClick={onTestSound}
+                sx={{
+                  backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                  color: '#4caf50',
+                  '&:hover': {
+                    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                  },
+                  padding: { xs: '6px', sm: '8px' },
+                }}
+                title="Test Sound Alert"
+              >
+                <VolumeUp />
+              </IconButton>
+            )}
           </Box>
         </Box>
 
@@ -334,12 +380,33 @@ const VideoMonitor: React.FC<VideoMonitorProps> = ({
             gap: 0.5,
           }}
         >
+          <Typography variant="caption" sx={{ color: isConnected ? '#4caf50' : '#f44336', fontSize: { xs: '0.625rem', sm: '0.75rem' } }}>
+            {isConnected ? '● Connected' : '● Disconnected'}
+          </Typography>
           <Typography variant="caption" sx={{ color: isMonitoring ? '#4caf50' : '#ff9800', fontSize: { xs: '0.625rem', sm: '0.75rem' } }}>
             {isMonitoring ? '● Monitoring Active' : '● Monitoring Stopped'}
           </Typography>
           <Typography variant="caption" sx={{ color: isCalibrated ? '#4caf50' : '#ff9800', fontSize: { xs: '0.625rem', sm: '0.75rem' } }}>
             {isCalibrated ? '✓ Calibrated' : '⚠ Calibration Required'}
           </Typography>
+          
+          {/* Sound Alert Status */}
+          {isMonitoring && (
+            <Typography 
+              variant="caption" 
+              sx={{ 
+                color: soundAlertTriggered ? '#ff1744' : (severeAlertCount > 0 ? '#ff9800' : '#4caf50'),
+                fontSize: { xs: '0.625rem', sm: '0.75rem' },
+                fontWeight: soundAlertTriggered ? 'bold' : 'normal'
+              }}
+            >
+              {soundAlertTriggered ? '🔊 Sound Alert!' : 
+               severeAlertCount === 1 ? '⏳ Grace Period' :
+               severeAlertCount === 2 ? '⚠ Initial Alert' :
+               severeAlertCount === 3 ? '🚨 Maximum Alert' :
+               '🔇 Audio Ready'}
+            </Typography>
+          )}
         </Box>
       </Box>
     </Box>
